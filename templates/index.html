@@ -1,0 +1,121 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>Gemini To-Do List</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width:900px; margin:2rem auto; padding:1rem; }
+        .todo { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee; }
+        .done { text-decoration:line-through; color:#999 }
+        button { padding:6px 10px; border-radius:6px; }
+        #suggestions { margin-top:1rem; background:#f8f9ff; padding:10px; border-radius:8px; }
+        #addForm { margin-bottom:1rem; }
+        #praiseMessage { margin-top: 1rem; padding: 10px; border: 1px solid #4CAF50; background-color: #e8f5e9; color: #388e3c; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Gemini To-Do List</h1>
+
+    <div id="addForm">
+        <input type="text" id="newTitle" placeholder="New Task"/>
+        <input type="number" id="newDuration" placeholder="Duration (min)"/>
+        <button id="addBtn">Add Task</button>
+    </div>
+    
+    <div id="praiseMessage" style="display:none;"></div>
+
+    <div id="list"></div>
+
+    <button id="ask">Ask Gemini for best order (one day)</button>
+
+    <div id="suggestions"></div>
+
+<script>
+async function fetchTodos(){
+    const r = await fetch('/todos');
+    const todos = await r.json();
+    const list = document.getElementById('list');
+    list.innerHTML = '';
+    todos.forEach(t=>{
+        const div = document.createElement('div');
+        div.className = 'todo';
+        div.innerHTML = `<div>
+            <input type="checkbox" ${t.done ? 'checked' : ''} data-id="${t.id}" class="cb"/>
+            <span class="${t.done ? 'done' : ''}">${t.title} (${t.duration_min}m)</span>
+          </div>
+          <div><button data-id="${t.id}" class="doneBtn">Mark Done</button></div>`;
+        list.appendChild(div);
+    });
+    attachHandlers();
+}
+
+function attachHandlers(){
+    document.querySelectorAll('.doneBtn').forEach(b=>{
+        b.onclick = async ()=>{
+            const id = b.getAttribute('data-id');
+            b.disabled = true;
+            const resp = await fetch('/complete/' + id, {method:'POST'});
+            const j = await resp.json();
+            
+            const praiseEl = document.getElementById('praiseMessage');
+            if(j.praise) {
+                praiseEl.textContent = j.praise;
+                praiseEl.style.display = 'block';
+            } else {
+                praiseEl.style.display = 'none';
+            }
+            
+            await fetchTodos(); // This will refresh the list and remove the done task
+        };
+    });
+}
+
+document.getElementById('ask').onclick = async ()=>{
+    document.getElementById('suggestions').innerText = 'Thinking...';
+    const r = await fetch('/suggest-order', {method:'POST'});
+    const j = await r.json();
+
+    if (j.suggested) {
+        let html = '<h3>Suggested order</h3><ol>';
+        j.suggested.forEach(s => {
+            const reasonText = s.reason ? ` - ${s.reason}` : '';
+            html += `<li><strong>${s.title}</strong>${reasonText}</li>`;
+        });
+        html += '</ol>';
+        document.getElementById('suggestions').innerHTML = html;
+    } else if (j.raw) {
+        let rawText = j.raw;
+        let cleanedText = rawText.replace(/```json\n|```/g, '').trim();
+        
+        try {
+            const suggested = JSON.parse(cleanedText);
+            let html = '<h3>Suggested order</h3><ol>';
+            suggested.forEach(s => {
+                const reasonText = s.reason ? ` - ${s.reason}` : '';
+                html += `<li><strong>${s.title}</strong>${reasonText}</li>`;
+            });
+            html += '</ol>';
+            document.getElementById('suggestions').innerHTML = html;
+        } catch (e) {
+            document.getElementById('suggestions').innerText = 'Error: The AI response was not in the expected format.\n' + j.raw;
+        }
+    } else {
+        document.getElementById('suggestions').innerText = 'An unexpected error occurred.';
+    }
+};
+
+document.getElementById('addBtn').onclick = async ()=>{
+    const title = document.getElementById('newTitle').value;
+    const dur = parseInt(document.getElementById('newDuration').value);
+    if(title && dur>0){
+        await fetch('/add', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({title:title,duration_min:dur})});
+        document.getElementById('newTitle').value='';
+        document.getElementById('newDuration').value='';
+        await fetchTodos();
+    }
+};
+
+fetchTodos();
+</script>
+</body>
+</html>
