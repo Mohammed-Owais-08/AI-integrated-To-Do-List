@@ -61,7 +61,7 @@ def add_todo():
 @app.route("/suggest-order", methods=["POST"])
 def suggest_order():
     todos = Todo.query.filter_by(done=False).all()
-    prompt = "You are a productivity assistant. Given the tasks with durations in minutes, produce a recommended order to complete them efficiently within one 8-hour day. Return ONLY a JSON array of objects like [{\"id\":1,\"title\":\"Task title\",\"reason\":\"short explanation\"}].\n\nTasks:\n"
+    prompt = "You are a productivity assistant. Given the tasks with durations in minutes, Please sort the tasks in order of priority, with the most important and impactful tasks first and the least important ones last. Also, give me the best order to complete them today.. Return ONLY a JSON array of objects like [{\"id\":1,\"title\":\"Task title\",\"reason\":\"short explanation\"}].\n\nTasks:\n"
     for t in todos:
         prompt += f"- id:{t.id} title:\"{t.title}\" duration:{t.duration_min}min\n"
     ai_text = call_gemini(prompt)
