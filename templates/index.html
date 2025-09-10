@@ -107,7 +107,7 @@
     </style>
 </head>
 <body>
-    <h1>Gemini To-Do List</h1>
+    <h1>AI-integrated To-Do List</h1>
 
     <div id="addForm">
         <input type="text" id="newTitle" placeholder="New Task"/>
@@ -119,9 +119,13 @@
 
     <div id="list"></div>
 
-    <button id="ask">Ask Gemini for best order (one day)</button>
+    <button id="ask">Ask AI for best order (one day)</button>
 
     <div id="suggestions"></div>
+
+    <footer style="margin-top:2rem; text-align:center; color:#666; font-size:0.9rem;">
+        Powered by Gemini API
+    </footer>
 
 <script>
 async function fetchTodos(){
