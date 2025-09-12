@@ -4,20 +4,23 @@
     <meta charset="utf-8"/>
     <title>AI Powered To-Do List</title>
     <style>
-        body { 
-            font-family: system-ui, sans-serif; 
-            max-width: 900px; 
-            margin: 2rem auto; 
-            padding: 1rem; 
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 1rem;
         }
 
-        h1 { text-align: center; margin-bottom: 1rem; }
+        h1 { 
+            text-align: center; 
+            margin-bottom: 1rem; 
+        }
 
         #addForm {
-            display: flex; 
-            flex-wrap: wrap; 
-            gap: 0.5rem; 
-            margin-bottom: 1rem; 
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
         }
 
         #addForm input[type="text"],
@@ -38,18 +41,18 @@
             cursor: pointer;
         }
 
-        .todo { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            padding: 8px 0; 
-            border-bottom: 1px solid #eee; 
+        .todo {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
             flex-wrap: wrap;
         }
 
-        .done { 
-            text-decoration: line-through; 
-            color: #999; 
+        .done {
+            text-decoration: line-through;
+            color: #999;
         }
 
         .doneBtn {
@@ -73,21 +76,41 @@
         }
 
         #suggestions, #praiseMessage {
-            margin-top: 1rem; 
-            padding: 10px; 
-            border-radius: 8px; 
+            margin-top: 1rem;
+            padding: 10px;
+            border-radius: 8px;
             word-break: break-word;
         }
 
-        #suggestions { 
-            background: #f8f9ff; 
+        #suggestions {
+            background: #f8f9ff;
         }
 
-        #praiseMessage { 
-            display: none; 
-            border: 1px solid #4CAF50; 
-            background-color: #e8f5e9; 
-            color: #388e3c; 
+        /* --- Praise Message Toast --- */
+        #praiseMessage {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            border: 1px solid #4CAF50;
+            background-color: #e8f5e9;
+            color: #388e3c;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 1rem;
+            line-height: 1.4;
+            max-width: 300px;
+            box-sizing: border-box;
+            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+            opacity: 0;
+            transform: translateY(20px);
+            z-index: 1000;
+        }
+
+        #praiseMessage.show {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
         }
 
         @media (max-width: 600px) {
@@ -103,6 +126,20 @@
             .doneBtn {
                 margin-top: 6px;
             }
+
+            #praiseMessage {
+                right: 10px;
+                left: 10px;
+                max-width: unset;
+                font-size: 0.9rem;
+            }
+        }
+
+        @media (max-width: 400px) {
+            #praiseMessage {
+                font-size: 0.8rem;
+                padding: 8px 10px;
+            }
         }
     </style>
 </head>
@@ -114,7 +151,7 @@
         <input type="number" id="newDuration" placeholder="Duration (min)"/>
         <button id="addBtn">Add Task</button>
     </div>
-    
+
     <div id="praiseMessage"></div>
 
     <div id="list"></div>
@@ -153,15 +190,22 @@ function attachHandlers(){
             b.disabled = true;
             const resp = await fetch('/complete/' + id, {method:'POST'});
             const j = await resp.json();
-            
+
             const praiseEl = document.getElementById('praiseMessage');
-            if(j.praise) {
+            if (j.praise) {
                 praiseEl.textContent = j.praise;
-                praiseEl.style.display = 'block';
+                praiseEl.classList.add('show');
+
+                // Auto-hide after 10 seconds
+                setTimeout(() => {
+                    praiseEl.classList.remove('show');
+                    setTimeout(() => praiseEl.style.display = 'none', 500);
+                }, 10000);
             } else {
+                praiseEl.classList.remove('show');
                 praiseEl.style.display = 'none';
             }
-            
+
             await fetchTodos();
         };
     });
@@ -183,7 +227,7 @@ document.getElementById('ask').onclick = async ()=>{
     } else if (j.raw) {
         let rawText = j.raw;
         let cleanedText = rawText.replace(/```json\n|```/g, '').trim();
-        
+
         try {
             const suggested = JSON.parse(cleanedText);
             let html = '<h3>Suggested order</h3><ol>';
@@ -205,7 +249,11 @@ document.getElementById('addBtn').onclick = async ()=>{
     const title = document.getElementById('newTitle').value;
     const dur = parseInt(document.getElementById('newDuration').value);
     if(title && dur>0){
-        await fetch('/add', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({title:title,duration_min:dur})});
+        await fetch('/add', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({title:title,duration_min:dur})
+        });
         document.getElementById('newTitle').value='';
         document.getElementById('newDuration').value='';
         await fetchTodos();
